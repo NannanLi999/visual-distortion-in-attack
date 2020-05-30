@@ -11,9 +11,8 @@ pip install -r requirements.txt
 
 Dataset
 
-[ImageNet Images](http://www.image-net.org/archive/stanford/fall11_whole.tar)
+To perform image attack, images from [ImageNet](http://www.image-net.org/archive/stanford/fall11_whole.tar) is required. For out-of-object attack, please donwload the [object bounding boxes](https://academictorrents.com/download/dfa9ab2528ce76b907047aa8cf8fc792852facb9.torrent)
 
-[ImageNet Bounding Boxes](http://image-net.org/Annotation/Annotation.tar.gz)
 
 ## Evaluation
 Before evaluation, please change the `IMAGE_DIR` in eval_attack.py to your own data directory.
