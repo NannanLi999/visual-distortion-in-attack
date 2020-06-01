@@ -1,7 +1,7 @@
 # visual-distortion-in-attack
 This repository is the official implementation of Towards Visual Distortion in Black-box Attacks.
 
-![](/framework/model.png)
+![](/framework/model.jpg)
 
 ## Performance
 
