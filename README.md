@@ -19,7 +19,7 @@ Increasing $\lambda$ can achive lower 1-SSIM and LPIPS at the cost of more numbe
 
 **Dependency**
 
-The code is based on Python with Tensorflow 1.12.0 and PyTorch 1.0.1. To install requirements,
+The code is based on Python 3.6 with Tensorflow 1.12.0 and PyTorch 1.0.1. To install requirements,
 
 ```setup
 pip install -r requirements.txt
