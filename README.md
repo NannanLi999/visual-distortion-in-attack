@@ -17,6 +17,12 @@ Increasing $\lambda$ can achive lower 1-SSIM and LPIPS at the cost of more numbe
 
 ## Requirements
 
+Clone this repo:
+
+```
+git clone https://github.com/Alina-1997/visual-distortion-in-attack
+```
+
 **Dependency**
 
 The code is based on Python 3.6 with Tensorflow 1.12.0 and PyTorch 1.0.1. To install requirements,
@@ -24,6 +30,14 @@ The code is based on Python 3.6 with Tensorflow 1.12.0 and PyTorch 1.0.1. To ins
 ```setup
 pip install -r requirements.txt
 ```
+
+To evaluate on LPIPS, clone the official repo
+
+```
+git clone https://github.com/richzhang/PerceptualSimilarity
+```
+and put it in the current directory.
+
 **Pretrained Model**
 
 The pretrained weights of InceptionV3, ResNet50 and VGG16bn will be downloaded automatically when running the corresponding network.
