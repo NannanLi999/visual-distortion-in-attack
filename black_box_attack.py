@@ -6,14 +6,14 @@ from torchvision import transforms
 import torch
 import torch.nn as nn
 import random
+import sys
 import cv2
 
-from util import compare_ssim
-
+from util import compare_one_minus_ssim, compare_lpips   
 
 class Black_Box_Attack:
     def __init__(self, sess, network,max_iterations = 10000,outer_iterations=10,batch_size=1, epsilon=0.05, 
-                lambda_=10.0, learning_rate = 0.01,q=0.01,N=1,minval=0.0,maxval=1.0):
+                lambda_=10.0, metric='1-SSIM',learning_rate = 0.01,q=0.01,N=1,minval=0.0,maxval=1.0):
                  
         image_size, num_channels, num_labels = network.image_size, network.num_channels, network.num_labels
         self.sess = sess
@@ -25,6 +25,7 @@ class Black_Box_Attack:
         self.num_channels=num_channels
         self.q=q
         self.lambda_=lambda_
+        self.metric=metric
         self.epsilon=epsilon
         self.minval=minval
         self.maxval=maxval
@@ -187,9 +188,17 @@ class Black_Box_Attack:
         output:
            shape_masks: a batch of object masks
         """
-        def compare (scores,label_vector):
+        def is_successful_attack(scores,label_vector):
             return np.argmax(scores)!=np.argmax(label_vector)
             
+        if self.metric=='1-SSIM':
+            compute_distance_metric=compare_one_minus_ssim
+        elif self.metric=='LPIPS':
+            compute_distance_metric=compare_lpips
+        else:
+            print('Undefinned perceptual distance metric!')
+            sys.exit()
+                 
         batch_size = self.batch_size
         image_size=batch[0].shape[1]
         
@@ -207,53 +216,62 @@ class Black_Box_Attack:
         
         for outer_i in range(self.outer_iterations):
           
+          ## flags: 0->not correctly classified, 1-> succesful attack
+          flags=np.array([-1]*batch_size,dtype=np.int32)
+          flags=(1-wrong.astype(np.int32))*flags      
+          
           ## initialize the model            
           self.sess.run(self.init)
+          
+          ## compute baseline b
           feed_dict={self.timg:batch,self.shape_mask:batchmask} 
           best_choice,nimg=self.sess.run([self.choice_init,self.img_init],feed_dict=feed_dict)
-          baseline,scores=self.get_loss_from_network(nimg,batchlab )  
-          
-          flags=np.array([-1]*batch_size,dtype=np.int32)
-          flags=(1-wrong.astype(np.int32))*flags          
+          baseline,scores=self.get_loss_from_network(nimg,batchlab )                
           
           distance=[]
           for e in range(batch_size):
-             im1=cv2.cvtColor((255*nimg[e]).astype(np.uint8),cv2.COLOR_RGB2GRAY)
-             im2=cv2.cvtColor((255*batch[e]).astype(np.uint8),cv2.COLOR_RGB2GRAY)
-             distance.append(1.0-compare_ssim(im1,im2))
+             im1=(255*nimg[e]).astype(np.uint8)
+             im2=(255*batch[e]).astype(np.uint8)
+             distance.append(compute_distance_metric(im1,im2))
           baseline+=lambda_*np.array(distance)
                      
           for iteration in range(self.max_iterations):       
             for e in range(batch_size):
-                if compare(scores[e], batchlab[e]) and flags[e]==-1:                
+                if is_successful_attack(scores[e], batchlab[e]) and flags[e]==-1:                
                     flags[e]=1
                     o_flags[e]=1
                     if distance[e]<o_bestdistance[e]:                      
                        o_bestdistance[e]=distance[e]
                        bestattck[e] = nimg[e]
                        all_num_query[e].append(iteration+1)
+                       
+            ## early stop if all samples are misclassified
             if np.sum(np.equal(flags,-1))==0:
                  break    
-                 
+            
+            ## compute L     
             feed_dict={self.timg:batch,self.shape_mask:batchmask,self.baseline:baseline,self.best_choice:best_choice}                           
             cur_choice,nimg=self.sess.run([self.cur_choice,self.newimg],feed_dict=feed_dict)                      
             cur_L,scores=self.get_loss_from_network(nimg,batchlab)                  
             distance=[]
             for e in range(batch_size):
-                    im1=cv2.cvtColor((255*nimg[e]).astype(np.uint8),cv2.COLOR_RGB2GRAY)##nimg[e]#
-                    im2=cv2.cvtColor((255*batch[e]).astype(np.uint8),cv2.COLOR_RGB2GRAY)#batch[e]#
-                    distance.append(1.0-compare_ssim(im1,im2))
+                    im1=(255*nimg[e]).astype(np.uint8)
+                    im2=(255*batch[e]).astype(np.uint8)
+                    distance.append(compute_distance_metric(im1,im2))
             cur_L+=lambda_*np.array(distance)                    
-                  
+            
+            ## gradient descent      
             feed_dict.update({self.cur_L:cur_L,
                        self.choice_plhd:cur_choice
                        })
             _, l,  detaL= self.sess.run([self.train, self.loss,self.detaL],feed_dict=feed_dict)
 
+            ## update baseline b
             for e in range(batch_size):
                if detaL[e]<0:
                  best_choice[e]=cur_choice[e]
                  baseline[e]+=detaL[e]
+                 
             # print out the losses every 10%
             if iteration%(self.max_iterations//10) == 0:
                     print(outer_i, iteration,'loss:',l,', baseline:',baseline[:5])                  

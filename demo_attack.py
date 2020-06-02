@@ -1,10 +1,3 @@
-## test_attack.py -- sample code to test attack procedure
-##
-## Copyright (C) 2016, Nicholas Carlini <nicholas@carlini.com>.
-##
-## This program is licenced under the BSD 2-Clause licence,
-## contained in the LICENCE file in this directory.
-
 
 import numpy as np
 import time
@@ -20,7 +13,7 @@ from setup_resnet import RESNET, RESNETModel
 from setup_inception import INCEPTION,INCEPTIONModel
 
 from black_box_attack import Black_Box_Attack
-from util import vis,compare_ssim
+from util import vis,compare_one_minus_ssim, compare_lpips,IMPORT_LPIPS_SUCCESS
 
 
 IMAGE_DIR='demo/'
@@ -33,10 +26,11 @@ MAX_ITERATION=10000       ## maximum number of iterations
 NUM_TEST_IMAGES=1         ## number of test images
 BATCH_SIZE=1              ## number of images per batch, it's required that NUM_TEST_IMAGES%batch_size==0 
 NOISE_EPSILON=0.05        ## maximum noise value
+PDIS_METRIC='1-SSIM'      ## perceptual distance metric, could be '1-SSIM' or 'LPIPS'
 LAMBDA=10.0               ## lambda that controls the trade-off between visual distortion and query efficiency. Larger lambda leads to less visual distortion.
 NUM_RANDOM_STARTS=1       ## number of random starts for the attack. 
 LEARNING_RATE=0.01        ## learning rate for $\theta$
-RESAMPLED_PROPORTION=0.01 ## the resampled propotion of the noise at each iteration
+RESAMPLED_PROPORTION=0.01 ## the resampled propotion of the noise at each iteration, must be less or equal to 1
 SAMPLE_FRQUENCY=1         ## sample frequency of the noise. The maximum value is 12.
      
 
@@ -74,7 +68,8 @@ if __name__ == "__main__":
    
     with tf.Session(config=config) as sess:
         attack = Black_Box_Attack(sess, network,max_iterations=MAX_ITERATION, batch_size=BATCH_SIZE, outer_iterations=NUM_RANDOM_STARTS,epsilon=NOISE_EPSILON,
-                                  lambda_=LAMBDA, learning_rate=LEARNING_RATE, q=RESAMPLED_PROPORTION, N=SAMPLE_FRQUENCY, minval=minval,maxval=maxval)
+                                  lambda_=LAMBDA, metric=PDIS_METRIC,learning_rate=LEARNING_RATE, q=RESAMPLED_PROPORTION, N=SAMPLE_FRQUENCY, 
+                                  minval=minval,maxval=maxval)
         
 
         inputs, labels,masks = generate_data(data, samples=NUM_TEST_IMAGES)
@@ -96,7 +91,8 @@ if __name__ == "__main__":
         ## display success rate
         print('success rate:',success_rate)
 
-        ssim=[]
+        one_minus_ssim=[]
+        lpips=[]
         
         for i in range(len(inputs)):
             ## save the results of successful attacks
@@ -112,14 +108,15 @@ if __name__ == "__main__":
                   
                   vis(img1,'ori/'+'_'.join(data.imglist[i].split('/')))
                   vis(img2,'adv/'+'_'.join(data.imglist[i].split('/')))
-                           
-                  img1=cv2.cvtColor(img1,cv2.COLOR_RGB2GRAY)
-                  img2=cv2.cvtColor(img2,cv2.COLOR_RGB2GRAY)                 
-                  ssim.append(compare_ssim(img1,img2))                                
-        ## display results of the distance metric. To compute LPIPS, please run 'cd PerceptualSimilarity' command in the Linux console,
-        ## and then run 'python compute_dists_dirs.py -d0 ../ori -d1 ../attack -o ./lpips.txt'
-        if len(ssim)>0:
-           print('1-SSIM:',1.0-np.mean(ssim))
+                                            
+                  one_minus_ssim.append(compare_one_minus_ssim(img1,img2))  
+                  if IMPORT_LPIPS_SUCCESS:
+                      lpips.append(compare_lpips(img1,img2))                             
+        ## display results of the distance metric.
+        if len(one_minus_ssim)>0:
+           print('1-SSIM:',np.mean(one_minus_ssim))
+           if len(lpips)>0:
+               print('LPIPS:',np.mean(lpips))
         else:
            if np.sum(np.equal(flag,0))==len(flag):
                print('No images were correctly classified!')
