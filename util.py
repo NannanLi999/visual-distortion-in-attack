@@ -5,6 +5,7 @@ import numpy as np
 import os
 import sys
 import torch
+from skimage.measure import compare_ssim
 
 IMPORT_LPIPS_SUCCESS=False
 try:
@@ -34,17 +35,19 @@ def fspecial_gauss(size, sigma):
     g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
     return g/g.sum()
     
-def compare_one_minus_ssim(img1, img2, cs_map=False):
+def compare_one_minus_ssim(img1, img2):
+    score=1.0-compare_ssim(img1,img2, data_range=255, multichannel=True)
+    return score
+"""             
+def compare_one_minus_ssim_single(img1, img2, cs_map=False):
     #Return the Structural Similarity Map corresponding to input images img1 
     #and img2 (images are assumed to be uint8)
     
     #This function attempts to mimic precisely the functionality of ssim.m a 
     #MATLAB provided by the author's of SSIM
     #https://ece.uwaterloo.ca/~z70wang/research/ssim/ssim_index.m
-    if len(img1.shape)==3 and img1.shape[2]==3:
-       img1=cv2.cvtColor(img1,cv2.COLOR_RGB2GRAY)
-    if len(img2.shape)==3 and img2.shape[2]==3:
-       img2=cv2.cvtColor(img2,cv2.COLOR_RGB2GRAY)
+    #if len(img2.shape)==3 and img2.shape[2]==3:
+    #   img2=cv2.cvtColor(img2,cv2.COLOR_RGB2GRAY)
        
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
@@ -71,7 +74,7 @@ def compare_one_minus_ssim(img1, img2, cs_map=False):
     else:
         return 1.0-np.mean(((2*mu1_mu2 + C1)*(2*sigma12 + C2))/((mu1_sq + mu2_sq + C1)*
                     (sigma1_sq + sigma2_sq + C2)))
-  
+"""  
 def compare_lpips(im1,im2):
       im1 = im2tensor(im1).cuda()
       im2 = im2tensor(im2).cuda()
