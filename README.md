@@ -9,9 +9,9 @@ We ran the code with 10 random starts when $\lambda=10, N=1$ and the maximum que
 
 | Black-box Network | Success Rate | 1-SSIM | LPIPS | Average Queries |
 | :-:| :-: | :-: | :-:| :-: |
-|    InceptionV3    |    98.7\%    | 0.065  | 0.084 |       731       |
-|     ResNet50      |    100\%     | 0.066  | 0.071 |       401       |
-|      VGG16bn      |    100\%     | 0.062  | 0.069 |       251       |
+|    InceptionV3    |    98.7\%    | 0.075  | 0.094 |       731       |
+|     ResNet50      |    100\%     | 0.076  | 0.081 |       401       |
+|      VGG16bn      |    100\%     | 0.072  | 0.079 |       251       |
 
 Increasing $\lambda$ can achive lower 1-SSIM and LPIPS at the cost of more number of queries and lower success rate.
 
