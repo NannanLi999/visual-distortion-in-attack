@@ -7,13 +7,21 @@ This repository is the official implementation of Towards Visual Distortion in B
 
 We ran the code with 10 random starts when $\lambda=10, N=1$ and the maximum queries=10,000. The results are reported below: 
 
-| Black-box Network | Success Rate | 1-SSIM | LPIPS | Average Queries |
-| :-:| :-: | :-: | :-:| :-: |
-|    InceptionV3    |    98.7\%    | 0.075  | 0.094 |       731       |
-|     ResNet50      |    100\%     | 0.076  | 0.081 |       401       |
-|      VGG16bn      |    100\%     | 0.072  | 0.079 |       251       |
+Ours
+| Black-box Network | Success Rate | 1-SSIM | LPIPS | CIEDE2000 | Average Queries |
+| :-:| :-: | :-: | :-:| :-:| :-: |
+|    InceptionV3    |    98.7\%    | 0.075  | 0.094 |   0.692   |       731       |
+|     ResNet50      |    100\%     | 0.076  | 0.081 |   0.741   |       401       |
+|      VGG16bn      |    100\%     | 0.072  | 0.079 |   0.699   |       251       |
 
-Increasing $\lambda$ can achive lower 1-SSIM and LPIPS at the cost of more number of queries and lower success rate.
+Ouss(${\lambda}_{dynamic}$)
+| Black-box Network | Success Rate | 1-SSIM | LPIPS | CIEDE2000 | Average Queries |
+| :-:| :-: | :-: | :-:| :-:| :-: |
+|    InceptionV3    |    100\%    | 0.016  | 0.023 |   0.215   |       7311       |
+|     ResNet50      |    100\%    | 0.009  | 0.009 |   0.204   |       7678       |
+|      VGG16bn      |    100\%    | 0.006  | 0.005 |   0.055   |       7602       |
+
+When using a fixed value of $lambda$, increasing it can acheive lower 1-SSIM, LPIPS and CIEDE2000 at the cost of more number of queries and lower success rate.
 
 ## Requirements
 
