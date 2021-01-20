@@ -32,7 +32,7 @@ NUM_RANDOM_STARTS=1       ## number of random starts for the attack.
 LEARNING_RATE=0.01        ## learning rate for $\theta$
 RESAMPLED_PROPORTION=0.01 ## the resampled propotion of the noise at each iteration, must be less or equal to 1
 SAMPLE_FRQUENCY=1         ## sample frequency of the noise. The maximum value is 12.
-     
+SEARCH_STEPS=1           ## set search_steps>1 for dynamic lambda search     
 
      
 def generate_data(data, samples):
@@ -53,11 +53,11 @@ if __name__ == "__main__":
     
     ## specify the balck-box network and its dalaloader
     if NETWORK=='InceptionV3':
-        data,network=VGGBN(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),VGGBNModel()
+        data,network=INCEPTION(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),INCEPTIONModel()
     elif NETWORK=='ResNet50':
         data,network=RESNET(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),RESNETModel()   
     elif NETWORK=='VGG16bn': 
-        data,network=INCEPTION(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),INCEPTIONModel()
+        data,network=VGGBN(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),VGGBNModel()
     else:
         print('UNKNOWN network!')
         sys.exit()
@@ -67,7 +67,8 @@ if __name__ == "__main__":
     minval,maxval=0,1.0
    
     with tf.Session(config=config) as sess:
-        attack = Black_Box_Attack(sess, network,max_iterations=MAX_ITERATION, batch_size=BATCH_SIZE, outer_iterations=NUM_RANDOM_STARTS,epsilon=NOISE_EPSILON,
+        attack = Black_Box_Attack(sess, network,max_iterations=MAX_ITERATION, lambda_iterations=SEARCH_STEPS,
+                                  batch_size=BATCH_SIZE, outer_iterations=NUM_RANDOM_STARTS,epsilon=NOISE_EPSILON,
                                   lambda_=LAMBDA, metric=PDIS_METRIC,learning_rate=LEARNING_RATE, q=RESAMPLED_PROPORTION, N=SAMPLE_FRQUENCY, 
                                   minval=minval,maxval=maxval)
         
@@ -93,7 +94,7 @@ if __name__ == "__main__":
 
         one_minus_ssim=[]
         lpips=[]
-        
+        ciede=[]
         for i in range(len(inputs)):
             ## save the results of successful attacks
             if results['flag'][i]==1:
@@ -111,10 +112,12 @@ if __name__ == "__main__":
                                             
                   one_minus_ssim.append(compare_one_minus_ssim(img1,img2))  
                   if IMPORT_LPIPS_SUCCESS:
-                      lpips.append(compare_lpips(img1,img2))                             
+                      lpips.append(compare_lpips(img1,img2))       
+                  ciede.append(compare_ciede2000(img1,img2))
         ## display results of the distance metric.
         if len(one_minus_ssim)>0:
            print('1-SSIM:',np.mean(one_minus_ssim))
+           print('CIEDE:',np.mean(ciede))
            if len(lpips)>0:
                print('LPIPS:',np.mean(lpips))
         else:
