@@ -13,7 +13,7 @@ from setup_resnet import RESNET, RESNETModel
 from setup_inception import INCEPTION,INCEPTIONModel
 
 from black_box_attack import Black_Box_Attack
-from util import vis,compare_one_minus_ssim, compare_lpips,IMPORT_LPIPS_SUCCESS
+from util import vis,compare_one_minus_ssim, compare_lpips,compare_ciede2000,IMPORT_LPIPS_SUCCESS
 
 
 IMAGE_DIR='/home/mm/LNN/ILSVRC2012/val/'
@@ -23,16 +23,16 @@ GPU_ID='0'
 NETWORK='ResNet50'        ## name of the black-box network, could be 'InceptionV3', 'ResNet50' or 'VGG16bn'
 USE_BBOX=False            ## whether to perform the out-of-object attack
 MAX_ITERATION=10000       ## maximum number of iterations
-NUM_TEST_IMAGES=1000      ## number of test images
-BATCH_SIZE=1              ## number of images per batch, it's required that NUM_TEST_IMAGES%batch_size==0 
+NUM_TEST_IMAGES=100       ## number of test images
+BATCH_SIZE=1             ## number of images per batch, it's required that NUM_TEST_IMAGES%batch_size==0 
 NOISE_EPSILON=0.05        ## maximum noise value
 PDIS_METRIC='1-SSIM'      ## perceptual distance metric, could be '1-SSIM' or 'LPIPS'
 LAMBDA=10.0               ## lambda that controls the trade-off between visual distortion and query efficiency. Larger lambda leads to less visual distortion.
-NUM_RANDOM_STARTS=1       ## number of random starts for the attack. 
+NUM_RANDOM_STARTS=5      ## number of random starts for the attack. 
 LEARNING_RATE=0.01        ## learning rate for $\theta$
 RESAMPLED_PROPORTION=0.01 ## the resampled propotion of the noise at each iteration, must be less or equal to 1
 SAMPLE_FRQUENCY=1         ## sample frequency of the noise. The maximum value is 12.
-     
+SEARCH_STEPS=1           ## set search_steps>1 for dynamic lambda search
 
      
 def generate_data(data, samples):
@@ -44,7 +44,7 @@ def generate_data(data, samples):
 
 
 if __name__ == "__main__":
-    
+    print('main')
     ## config gpu
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -52,11 +52,11 @@ if __name__ == "__main__":
     config.gpu_options.visible_device_list=GPU_ID
     
     ## specify the balck-box network and its dalaloader
-    if NETWORK=='InceptionV3':
+    if NETWORK=='VGG16bn':
         data,network=VGGBN(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),VGGBNModel()
     elif NETWORK=='ResNet50':
         data,network=RESNET(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),RESNETModel()   
-    elif NETWORK=='VGG16bn': 
+    elif NETWORK=='InceptionV3': 
         data,network=INCEPTION(IMAGE_DIR,BBOX_DIR,num_images=NUM_TEST_IMAGES,use_mask=USE_BBOX),INCEPTIONModel()
     else:
         print('UNKNOWN network!')
@@ -67,7 +67,8 @@ if __name__ == "__main__":
     minval,maxval=0,1.0
    
     with tf.Session(config=config) as sess:
-        attack = Black_Box_Attack(sess, network,max_iterations=MAX_ITERATION, batch_size=BATCH_SIZE, outer_iterations=NUM_RANDOM_STARTS,epsilon=NOISE_EPSILON,
+        attack = Black_Box_Attack(sess, network,max_iterations=MAX_ITERATION, lambda_iterations=SEARCH_STEPS,batch_size=BATCH_SIZE, 
+                                  outer_iterations=NUM_RANDOM_STARTS,epsilon=NOISE_EPSILON,
                                   lambda_=LAMBDA, metric=PDIS_METRIC,learning_rate=LEARNING_RATE, q=RESAMPLED_PROPORTION, N=SAMPLE_FRQUENCY, 
                                   minval=minval,maxval=maxval)
         
@@ -93,7 +94,7 @@ if __name__ == "__main__":
 
         one_minus_ssim=[]
         lpips=[]
-        
+        ciede=[]
         for i in range(len(inputs)):
             ## save the results of successful attacks
             if results['flag'][i]==1:
@@ -102,19 +103,25 @@ if __name__ == "__main__":
                   
                   ## convert adversarial example to uint8 type
                   img1=255.0*inputs[i]
-                  img1=img1.astype(np.uint8)                 
+                  img1=img1.astype(np.uint8)   
+                  #img1=cv2.cvtColor(img1,cv2.COLOR_RGB2BGR)              
                   img2=255.0*results['attack'][i]
                   img2=img2.astype(np.uint8)
+                  #img2=cv2.cvtColor(img2,cv2.COLOR_RGB2BGR)  
                   
                   vis(img1,'ori/'+'_'.join(data.imglist[i].split('/')))
                   vis(img2,'adv/'+'_'.join(data.imglist[i].split('/')))
                                             
                   one_minus_ssim.append(compare_one_minus_ssim(img1,img2))  
                   if IMPORT_LPIPS_SUCCESS:
-                      lpips.append(compare_lpips(img1,img2))                             
+                      lpips.append(compare_lpips(img1,img2))   
+                      
+                  ciede.append(compare_ciede2000(img1,img2))
+                                         
         ## display results of the distance metric.
         if len(one_minus_ssim)>0:
            print('1-SSIM:',np.mean(one_minus_ssim))
+           print('CIEDE:',np.mean(ciede))
            if len(lpips)>0:
                print('LPIPS:',np.mean(lpips))
         else:

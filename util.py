@@ -6,6 +6,7 @@ import os
 import sys
 import torch
 from skimage.measure import compare_ssim
+import skimage.color as color
 
 IMPORT_LPIPS_SUCCESS=False
 try:
@@ -38,6 +39,29 @@ def fspecial_gauss(size, sigma):
 def compare_one_minus_ssim(img1, img2):
     score=1.0-compare_ssim(img1,img2, data_range=255, multichannel=True)
     return score
+    
+def compare_ciede2000(img1,img2):
+        img1=cv2.cvtColor(img1,cv2.COLOR_RGB2BGR)
+        img1=np.float32(img1)/255.0
+        img1= cv2.cvtColor(img1, cv2.COLOR_BGR2Lab)
+        l1, a1, b1 = cv2.split(img1)
+        l1,a1,b1=l1.flatten(),a1.flatten(),b1.flatten() 
+              
+        img2=cv2.cvtColor(img2,cv2.COLOR_RGB2BGR) 
+        img2=np.float32(img2)/255.0
+        img2= cv2.cvtColor(img2, cv2.COLOR_BGR2Lab)
+        l2, a2, b2 = cv2.split(img2) 
+        l2,a2,b2=l2.flatten(),a2.flatten(),b2.flatten() 
+        
+        deta=0  
+        for j in range(len(l1)):
+          if (l1[j],a1[j],b1[j])==(l2[j],a2[j],b2[j]):
+             t=0
+          else:
+             t=color.deltaE_ciede2000((l1[j],a1[j],b1[j]), (l2[j],a2[j],b2[j]))
+          deta+=t
+          
+        return deta/len(l1)
 """             
 def compare_one_minus_ssim_single(img1, img2, cs_map=False):
     #Return the Structural Similarity Map corresponding to input images img1 
@@ -79,4 +103,13 @@ def compare_lpips(im1,im2):
       im1 = im2tensor(im1).cuda()
       im2 = im2tensor(im2).cuda()
       dist=torch.squeeze(LPIPS.forward(im1,im2))
-      return dist.data.cpu().numpy()     
+      return dist.data.cpu().numpy()  
+      
+def GMSD(img1, img2):
+    # ????,????
+    # ?????quality_map????????????????????
+    result_static, quality_map = cv2.quality.QualityGMSD_compute(img1, img2)
+    # ????
+    score = np.mean([i for i in result_static if (i != 0 and not np.isinf(i))])
+    score = 0 if np.isnan(score) else score
+    return score   
