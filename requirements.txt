@@ -8,7 +8,7 @@ gast==0.3.3
 grpcio==1.28.1
 h5py==2.10.0
 imageio==2.8.0
-ipython==7.14.0
+ipython==7.16.3
 ipython-genutils==0.2.0
 jedi==0.17.0
 Keras==2.2.4
